@@ -7,7 +7,7 @@
 #include <ctime>
 
 #define MATRIX_SIZE 4096
-#define BLOCK_SIZE 1024 
+#define BLOCK_SIZE 256 
 #define BM 64
 #define BN 64
 #define BK 8
@@ -33,38 +33,44 @@
 }
 
 
+// so grid.x covers columns and grid.y covers rows.
 __global__ void sgemm1DBlockTiling(int M, int N, int K, float alpha,
                                    const float *A, const float *B, float beta,
                                    float *C) {
-    // Determine which tile of C this block is working on.
-    const unsigned int cRow = blockIdx.y;
-    const unsigned int cCol = blockIdx.x;
+    // Determine which tile of C this block is responsible for.
+    const unsigned int tileRow = blockIdx.y; // each tile covers BM rows
+    const unsigned int tileCol = blockIdx.x; // each tile covers BN columns
 
-    // Map thread indices: 1024 threads per block.
-    const int threadCol = threadIdx.x % BN;
-    const int threadRow = threadIdx.x / BN;  // Ranges from 0 to 15.
+    // We assume BN=64 threads per row, so we have 256/64 = 4 thread rows.
+    const int threadCol = threadIdx.x % BN;      // 0..63
+    const int threadRow = threadIdx.x / BN;        // 0..3
 
-    // Allocate shared memory for the A and B tiles.
-    __shared__ float As[BM * BK];
-    __shared__ float Bs[BK * BN];
+    // Allocate shared memory tiles.
+    __shared__ float As[BM * BK]; // tile from A: 64x8 elements
+    __shared__ float Bs[BK * BN]; // tile from B: 8x64 elements
 
-    // Adjust global pointers to point to the beginning of the block’s tile.
-    A += cRow * BM * K;
-    B += cCol * BN;
-    C += cRow * BM * N + cCol * BN;
+    // Adjust pointers to the beginning of the tile in global memory.
+    // Each tile of A starts at row (tileRow*BM) and B starts at column (tileCol*BN).
+    A += tileRow * BM * K;
+    B += tileCol * BN;
+    C += tileRow * BM * N + tileCol * BN;
 
-    // Initialize thread-local accumulator.
-    float threadResults[TM] = {0.0f, 0.0f, 0.0f, 0.0f};
+    // Each thread maintains an accumulator for TM output rows.
+    float threadResults[TM];
+    #pragma unroll
+    for (int i = 0; i < TM; ++i)
+        threadResults[i] = 0.0f;
 
-    // Loop over K in steps of BK.
+    // Loop over the K dimension in blocks of BK.
     for (int bkIdx = 0; bkIdx < K; bkIdx += BK) {
-        // Load a BMxBK tile of A into shared memory.
+        // Load A tile (size BM x BK) into shared memory.
+        // Use a strided loop so that all 256 threads cooperate.
         for (int idx = threadIdx.x; idx < BM * BK; idx += blockDim.x) {
             int row = idx / BK;
             int col = idx % BK;
             As[idx] = A[row * K + col];
         }
-        // Load a BKxBN tile of B into shared memory.
+        // Load B tile (size BK x BN) into shared memory.
         for (int idx = threadIdx.x; idx < BK * BN; idx += blockDim.x) {
             int row = idx / BN;
             int col = idx % BN;
@@ -72,28 +78,30 @@ __global__ void sgemm1DBlockTiling(int M, int N, int K, float alpha,
         }
         __syncthreads();
 
-        // Compute dot products: for each dot product index in the tile.
+        // Compute dot products for each element of the output sub-tile.
+        // For each position in the K dimension tile.
         for (int dotIdx = 0; dotIdx < BK; ++dotIdx) {
-            // Cache the Bs value to improve reuse.
-            float tmpB = Bs[dotIdx * BN + threadCol];
-            // For each of the TM output rows for this thread.
+            float tmpB = Bs[dotIdx * BN + threadCol]; // value from B tile
+            // Each thread computes TM consecutive rows.
             for (int resIdx = 0; resIdx < TM; ++resIdx) {
-                threadResults[resIdx] +=
+                // (threadRow*TM + resIdx) gives the row in the tile
+                threadResults[resIdx] += 
                     As[(threadRow * TM + resIdx) * BK + dotIdx] * tmpB;
             }
         }
         __syncthreads();
 
-        // Advance pointers to the next tile in K.
+        // Advance A and B pointers to the next tile in K.
         A += BK;
         B += BK * N;
     }
 
-    // Write the accumulated results to global memory.
+    // Write the computed results from registers back to global memory.
     for (int resIdx = 0; resIdx < TM; ++resIdx) {
-        C[(threadRow * TM + resIdx) * N + threadCol] =
-            alpha * threadResults[resIdx] +
-            beta * C[(threadRow * TM + resIdx) * N + threadCol];
+        // Row index in the output tile: (threadRow * TM + resIdx)
+        int row = threadRow * TM + resIdx;
+        C[row * N + threadCol] = alpha * threadResults[resIdx] + 
+                                 beta * C[row * N + threadCol];
     }
 }
 
