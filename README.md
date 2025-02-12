@@ -25,7 +25,7 @@ Below are performance results comparing execution time and GFLOPS on two differe
 
 ![](compare.png)
 
-The 4090 is about 41x faster in cuBLAS SGEMM.
+The 4090 is about 41x faster in cuBLAS SGEMM.(And can be more faster after tuning the kernel more)
 
 Here are the raw results:
 
