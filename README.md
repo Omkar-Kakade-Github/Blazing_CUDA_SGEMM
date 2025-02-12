@@ -23,9 +23,14 @@ This project implements multiple versions of SGEMM:
 
 Below are performance results comparing execution time and GFLOPS on two different GPUs: NVIDIA GTX 1650 Ti and RTX 4090.
 
-
+![](compare.png)
 
 The 4090 is about 41x faster in cuBLAS SGEMM.
+
+Here are the raw results:
+
+![](Results_1650ti)
+![](Results_4090)
 
 ## Challenges Faced
 
