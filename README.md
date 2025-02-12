@@ -29,8 +29,8 @@ The 4090 is about 41x faster in cuBLAS SGEMM.
 
 Here are the raw results:
 
-![](Results_1650ti)
-![](Results_4090)
+![](Results_1650ti.png)
+![](Results_4090.png)
 
 ## Challenges Faced
 
