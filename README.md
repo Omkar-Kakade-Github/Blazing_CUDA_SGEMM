@@ -51,6 +51,7 @@ This project uses CMake to manage the build process.
 - NVIDIA GPU with CUDA support.
 - CUDA Toolkit.
 - CMake (version 3.8 or later).
+- Current implementations have only been tested on Ubuntu 22.04.5
 
 ### Steps
 
