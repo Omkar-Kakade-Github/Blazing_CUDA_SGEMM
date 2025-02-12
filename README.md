@@ -67,3 +67,12 @@ The program will:
 Perform 5 warmup runs for each kernel to overcome initial overhead.
 Execute 20 benchmark runs per kernel.
 Report the average runtime, achieved GFLOPS, and the performance relative to the cuBLAS implementation.
+
+## TODO
+
+### Implement the following kernels:
+1. > [Implementations from siboehm's worklog](https://siboehm.com/articles/22/CUDA-MMM)
+2. > [Implementations from Lei Mao's blog](https://leimao.github.io/article/CUDA-Matrix-Multiplication-Optimization/#Implementation-with-2D-Block-Tiling-and-2D-Thread-Tiling)
+3. > [Implementations from salykova's blog](https://salykova.github.io/sgemm-gpu)
+
+## The sole purpose of this project was to check how far I can push the limits of my GPU and learn along the way. Thanks to the awesome people I have mentioned above and people from GPU MODE, I was able to understand and implement these kernels.
