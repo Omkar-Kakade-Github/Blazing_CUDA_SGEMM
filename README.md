@@ -58,7 +58,7 @@ This project uses CMake to manage the build process.
    ```bash
    mkdir build
    cd build
-   cmake
+   cmake ..
    make
    ./sgemm
    ```
