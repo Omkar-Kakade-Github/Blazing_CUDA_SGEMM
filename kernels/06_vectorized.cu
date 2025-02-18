@@ -105,8 +105,6 @@ void run_vectorized(int M, int N, int K, float alpha, float *d_A, float *d_B,
     sgemm_vectorize<BM, BN, BK, TM, TN>
         <<<gridDim, blockDim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
   } else {
-    // this is a hacky solution to the underlying problem
-    // of not having proper bounds checking in the kernel
     const uint BM = 64;
     const uint BN = 64;
     dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
